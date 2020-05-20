@@ -31,15 +31,15 @@ class walmart1():
         self.monitor_id = "walmart1"
         self.parse_add_function = self.retrive_stock
 
-    def atc_button_gen(self,productIdentifier):
-        return {"type": "button","text": "Add to Cart :shopping_trolley:","url": 'http://affil.walmart.com/cart/addToCart?q=1&items='+str(productIdentifier)}
+    def atc_button_gen(self,product_identifier):
+        return {"type": "button","text": "Add to Cart :shopping_trolley:","url": 'http://affil.walmart.com/cart/addToCart?q=1&items='+str(product_identifier)}
 
-    def retrive_stock(self,productIdentifier,instance):
+    def retrive_stock(self,product_identifier,instance):
         product = {}
-        requestUrl = "http://affil.walmart.com/cart/addToCart?items="+str(productIdentifier)
+        request_url = "http://affil.walmart.com/cart/addToCart?items="+str(product_identifier)
         while True:
             try:
-                r = requests.get(requestUrl)
+                r = requests.get(request_url)
                 if r.status_code != 200:
                     logging.info("Error: Page could not be retrived, Retrying...")
                     raise Exception
@@ -49,63 +49,62 @@ class walmart1():
         if r.url == "https://www.walmart.com/cart/":
             try:
                 soup = BeautifulSoup(r.content)
-                productStock = str(soup.find_all('script')[17]).split('availableQuantity":')[1].split(',')[0]
+                product_stock = str(soup.find_all('script')[17]).split('availableQuantity":')[1].split(',')[0]
             except Exception:
-                productStock = 'Unavailable'
+                product_stock = 'Unavailable'
         else:
-            productStock = 'Unavailable'
-        product['productStock'] = productStock
+            product_stock = 'Unavailable'
+        product['productStock'] = product_stock
         return product
 
-    def parse_function(self,productId,instance):
-        requestLink = 'https://www.walmart.com/terra-firma/item/'+str(productId)
+    def parse_function(self,product_id,instance):
+        request_link = 'https://www.walmart.com/terra-firma/item/'+str(product_id)
         while True:
             try:
-                r = requests.get(requestLink, proxies= {"https":instance.proxy})
+                r = requests.get(request_link, proxies= {"https":instance.proxy})
                 if r.status_code != 200:
                     logging.info("Error: Page could not be retrived, Retrying...")
                     logging.info(r.content)
                     raise ValueError("Bad Status Code While Parsing Page: "+str(r.status_code))
-                rawJson = json.loads(r.content)
-                if 'sellers' not in list(rawJson['payload'].keys()):
+                raw_json = json.loads(r.content)
+                if 'sellers' not in list(raw_json['payload'].keys()):
                     time.sleep(5)
-                    raise ValueError("Bad Data Retrived From Page. ")#raise ValueError("Bad Data Retrived From Page: "+str(rawJson))
+                    raise ValueError("Bad Data Retrived From Page. ")#raise ValueError("Bad Data Retrived From Page: "+str(raw_json))
             except Exception as e:
                 logging.info(e)
                 instance.rotate_proxy()
-                #instance.dojoError.log_error(str(traceback.format_exc()),productId,False)
                 continue
             break
         try:
-            rawProductContent = rawJson['payload']['products'][rawJson['payload']['primaryProduct']]
+            raw_product_content = raw_json['payload']['products'][raw_json['payload']['primaryProduct']]
         except Exception:
             logging.info("Product Unavailable")
             return  {"productUrl":None,"productTitle":None,"productImage":None,"productPrice":None,"inStock":False,"productId":None}
-        productTitle = rawProductContent['productAttributes']['productName']
-        productUrl = "https://www.walmart.com/product/"+str(productId)
+        product_title = raw_product_content['productAttributes']['productName']
+        product_url = "https://www.walmart.com/product/"+str(product_id)
         try:
-            productImgUrl = list(rawJson['payload']['images'].values())[0]['assetSizeUrls']['IMAGE_SIZE_450']
+            product_img_url = list(raw_json['payload']['images'].values())[0]['assetSizeUrls']['IMAGE_SIZE_450']
         except Exception:
-            productImgUrl = "N/A"
-        rawAvailabilityInfo = list(rawJson['payload']['offers'].values())
-        sellerInfo = {seller['sellerId']:seller['sellerType'] for seller in list(rawJson['payload']['sellers'].values())}
-        walmartListings = [i for i in rawAvailabilityInfo if sellerInfo[i['sellerId']] == "INTERNAL"]
-        walmartInStock = [i for i in walmartListings if i['productAvailability']['availabilityStatus'] != "OUT_OF_STOCK"]
-        if len(walmartInStock) != 0:
+            product_img_url = "N/A"
+        raw_availability_info = list(raw_json['payload']['offers'].values())
+        seller_info = {seller['sellerId']:seller['sellerType'] for seller in list(raw_json['payload']['sellers'].values())}
+        walmart_listings = [i for i in raw_availability_info if seller_info[i['sellerId']] == "INTERNAL"]
+        walmart_in_stock = [i for i in walmart_listings if i['productAvailability']['availabilityStatus'] != "OUT_OF_STOCK"]
+        if len(walmart_in_stock) != 0:
             try:
-                productPrice = walmartInStock[0]['pricesInfo']['priceMap']['CURRENT']['price']
+                product_price = walmart_in_stock[0]['pricesInfo']['priceMap']['CURRENT']['price']
             except Exception:
-                productPrice = "N/A"
+                product_price = "N/A"
             try:
-                productZip = str(walmartInStock[0]['fulfillment']['pickupOptions'][0]['storePostalCode'])
+                product_zip = str(walmart_in_stock[0]['fulfillment']['pickupOptions'][0]['storePostalCode'])
             except Exception:
-                productZip = "N/A"
-            inStock = True
+                product_zip = "N/A"
+            in_stock = True
         else:
-            productPrice = "N/A"
-            productZip = "N/A"
-            inStock = False
-        productInfo = {"productUrl":productUrl,"productTitle":productTitle,"productImage":productImgUrl,"productPrice":productPrice,"inStock":inStock,"productId":productId}
-        return productInfo
+            product_price = "N/A"
+            product_zip = "N/A"
+            in_stock = False
+        product_info = {"productUrl":product_url,"productTitle":product_title,"productImage":product_img_url,"productPrice":product_price,"inStock":in_stock,"productId":product_id}
+        return product_info
 
 Logic(walmart1()).spe_monitor()
