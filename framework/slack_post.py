@@ -1,7 +1,6 @@
 import time
 import logging
 import warnings
-from pymongo import MongoClient
 from slackclient import SlackClient
 
 
@@ -18,12 +17,12 @@ class SlackPost():
         self.monitor_settings = monitor_settings
         self.message_settings = self.monitor_settings['slackSettings']
         self.message_field_dic = {'productPrice':{"title": "Price:",'value': None,"short": True},'productStock':{"title": "Initial Stock:",'value': None,"short": True}}
-        self.status_dic = {True:":white_check_mark:",False:":octagonal_sign:"}
         self.atc_button_gen = atc_button_gen
         slack_token = "" #insert slack api token here
         self.sc = SlackClient(slack_token)
 
     def post_product(self,product):
+        ## determine wether to post new message or update old message to mark product as out of stock
         message = self.format_message(product)
         if product['inStock'] == True:
             message[0]['fields'][-1]['value'] = ":white_check_mark:In Stock"
@@ -39,6 +38,7 @@ class SlackPost():
                 logging.info("In Stock Message Not Available to Correct")
 
     def format_message(self,product):
+        ## format a slack message for the passed in product
         base_message = [
                 {
                     "thumb_url": product['productImage'],
@@ -54,14 +54,13 @@ class SlackPost():
                     "actions": []
                 }
         ]
-        print(product)
         for i in list(product.keys()):
             if i in list(self.message_field_dic.keys()):
                 field = self.message_field_dic[i]
                 field['value'] = product[i]
                 base_message[0]['fields'].append(field)
         base_message[0]['fields'].append({"title": "Status:",'value': None,"short": True})
-        if self.atc_button_gen: base_message[0]['actions'].append(self.atc_button_gen(product['productId']))
+        if self.atc_button_gen: base_message[0]['actions'].append(self.atc_button_gen(product['productId'])) ## if atc button specified in module, add to message
         return base_message
 
     def update_message(self,message,timestamp):
@@ -74,7 +73,7 @@ class SlackPost():
         try:
             return response['ts']
         except Exception:
-            print(response)
+            print(response) ## if error, print response
 
     def post_message(self,message,):
         response = self.sc.api_call(
@@ -85,4 +84,4 @@ class SlackPost():
         try:
             return response['ts']
         except Exception:
-            print(response)
+            print(response) ## if error, print response
