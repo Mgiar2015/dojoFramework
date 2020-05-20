@@ -1,7 +1,5 @@
 import time
 import logging
-import warnings
-from pymongo import MongoClient
 from slackclient import SlackClient
 
 logging.basicConfig(level=logging.INFO,
@@ -17,15 +15,17 @@ class ErrorPost():
         self.monitor_settings = monitor_settings
         self.channel_id = "" #insert channel id to feed errors into
         slack_token = "" #insert slack api key here 
-        self.sc = SlackClient(slack_token)
+        self.sc = SlackClient(slack_token) #connect to slack client which will be used to post messages
 
     def log_error(self,error_string,product_identifier = "None",send_message = True):
+        ## send message about error depending on passed in attributes
         product_identifier = str(product_identifier)
         if send_message:
             self.send_message(error_string,product_identifier)
         logging.info("Error Successfully Logged")
 
     def send_message(self,error_string,product_identifier):
+        ## send actual slack message indicting issue
         dropnotif =  [
                 {
                     "color": "#000000",
@@ -42,4 +42,4 @@ class ErrorPost():
         try:
             return response['ts']
         except Exception:
-            print(response)
+            print(response) # print error if error occurs sending message
