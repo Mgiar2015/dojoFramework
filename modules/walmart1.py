@@ -4,10 +4,6 @@ import time
 import json
 import logging
 import requests
-import random
-import cfscrape
-import traceback
-import cfscrape
 from bs4 import BeautifulSoup
 
 if str(os.path.dirname(os.path.abspath(__file__))).count("/") > str(os.path.dirname(os.path.abspath(__file__))).count("\\"):
@@ -15,9 +11,7 @@ if str(os.path.dirname(os.path.abspath(__file__))).count("/") > str(os.path.dirn
 else:
     splitChar = "\\"
 folder_dir = str(os.path.dirname(os.path.abspath(__file__))).split(str(os.path.dirname(os.path.abspath(__file__))).split(splitChar)[-1])[0][:-1]
-print(folder_dir)
 sys.path.append(folder_dir+splitChar+"framework")
-
 from logic import Logic
 
 logging.basicConfig(level=logging.INFO,
@@ -25,6 +19,7 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%m/%d/%Y %I:%M:%S',
                     )
 logging.getLogger("requests").setLevel(logging.WARNING)
+
 class walmart1():
 
     def __init__(self):
