@@ -1,18 +1,12 @@
 import os
-import json
-import time
 import sys
-import random
+import time
 import logging
 import warnings
 import datetime
 import requests
-import cfscrape
 import traceback
-from bs4 import BeautifulSoup
-import time
 import threading
-from pymongo import MongoClient
 
 from database import ProductAccess, StoreAccess
 from slack_post import SlackPost
@@ -27,6 +21,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 class Logic():
 
     def __init__(self,monitor_class):
+        ## initiate Logic class, create instances of supporting classes
         self.monitor_id = monitor_class.monitor_id
         self.store_access = StoreAccess(self.monitor_id)
         self.product_access = ProductAccess(self.monitor_id)
@@ -37,6 +32,7 @@ class Logic():
         self.parse_function = monitor_class.parse_function
 
     def update_store_settings(self):
+        ## update monitor settings for specific monitor module
         monitor_settings = self.store_access.retrive_store_settings()
         if monitor_settings['proxiesEnabled']:
             if monitor_settings['proxySettings']['resiEnabled']:
@@ -61,6 +57,7 @@ class Logic():
         return monitor_settings
 
     def retrive_proxy_list(self,proxy_list):
+        ## retrive proxt list
         if str(os.path.dirname(os.path.abspath(__file__))).count("/") > str(os.path.dirname(os.path.abspath(__file__))).count("\\"):
             split_char = "/"
         else:
@@ -75,12 +72,14 @@ class Logic():
         return proxies
 
     def rotate_proxy(self):
+        ## change the proxy that is set to the self.proxy variable
         if self.proxy == self.proxy_list[-1]:
             self.proxy = self.proxy_list[0]
         else:
             self.proxy = self.proxy_list[self.proxy_list.index(self.proxy)+1]
 
     def smart_post_filter(self,product_identifier):
+        ### check wether a post for this same product has been made in the last 60 seconds, if it has, do not post the product 
         out_of_stock_time = 60
         product = self.product_access.retrive_product(product_identifier)
         if False not in [i['inStock'] for i in product['stockLog']]:
@@ -98,6 +97,7 @@ class Logic():
         return post_message
 
     def single_product_endpoint(self,product_identifier):
+        ## monitor a single product endpoint
         logging.info("Initiated Single Product Id Logic")
         while True:
             product = self.parse_function(product_identifier,self)
@@ -135,6 +135,7 @@ class Logic():
             self.product_access.log_product_status(product_identifier,product['inStock'])
 
     def w_single_product_endpoint(self,product_identifier):
+        ## wrapper function for single product endpoint
         while True:
             try:
                 self.single_product_endpoint(product_identifier,)
@@ -142,19 +143,20 @@ class Logic():
                 self.error_post.log_error(str(traceback.format_exc()),product_identifier)
 
     def spe_monitor(self):
+        ## initiate spe monitor for each product specified in product database
         c = 0
         product_list = self.product_access.retrive_products()
         print(product_list)
         product_list = [i for i in product_list if i['manuallyAdded'] == True]
-        for product in product_list: #check wether a product is being monitored in the wish list. If it is not it is given a dedicated thread
+        for product in product_list:
             c+= 1
             t = threading.Thread(name=(self.monitor_id+" #"+str(c)),target= self.w_single_product_endpoint, args=(product[self.default_identifier],))
             t.start()
         t.join()
 
     def new_product_endpoint(self):
+        ## monitor a page for new products to pop up
         logging.info("Initiated New Page Logic")
-
         init_products = self.parse_function(self)
         self.product_access.import_new_products(init_products)
         while True:
@@ -188,6 +190,7 @@ class Logic():
             init_products = products
 
     def npe_monitor(self):
+        ## wrapper function for new product endpoint
         while True:
             try:
                 self.new_product_endpoint()
@@ -196,6 +199,7 @@ class Logic():
 
 
     def multi_product_endpoint(self,product_identifiers):
+        ## monitor multiple passed in product ids with a single endpoint
         logging.info("Initiated Multi Id Page Logic")
         init_products = self.parse_function(product_identifiers,self)
         self.product_access.import_new_products(init_products)
@@ -230,6 +234,7 @@ class Logic():
             init_products = products
 
     def w_multi_product_endpoint(self,product_identifiers):
+        ## wrapper function for multi product endpoint
         while True:
             try:
                 self.multi_product_endpoint(product_identifiers,)
@@ -237,12 +242,13 @@ class Logic():
                 self.error_post.log_error(str(traceback.format_exc()))
 
     def mpe_monitor(self,max_page=10000000000):
+        ## run needed amount of threads to accomidate for all products in database using the multi product endpoint monitor method
         product_list = self.product_access.retrive_products()
         product_identifiers = [i[self.default_identifier] for i in product_list if i['manuallyAdded'] == True]
         self.product_identifiers = product_identifiers
         n = max_page
         c = 0
-        identifer_lists = [product_identifiers[i * n:(i + 1) * n] for i in range((len(product_identifiers) + n - 1) // n )]
+        identifer_lists = [product_identifiers[i * n:(i + 1) * n] for i in range((len(product_identifiers) + n - 1) // n )] # split list of products into sublist of products based on the max_page value that was passed in
         for id_list in identifer_lists:
             c+= 1
             t = threading.Thread(name=(self.monitor_id+" #"+str(c)),target= self.w_multi_product_endpoint, args=(id_list,))
