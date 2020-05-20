@@ -1,5 +1,6 @@
 import time
 import logging
+import requests
 import datetime
 from pymongo import MongoClient
 
