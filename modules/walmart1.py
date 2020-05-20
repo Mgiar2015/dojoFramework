@@ -69,7 +69,7 @@ class walmart1():
                 raw_json = json.loads(r.content)
                 if 'sellers' not in list(raw_json['payload'].keys()):
                     time.sleep(5)
-                    raise ValueError("Bad Data Retrived From Page. ")#raise ValueError("Bad Data Retrived From Page: "+str(raw_json))
+                    raise ValueError("Bad Data Retrived From Page. ")
             except Exception as e:
                 logging.info(e)
                 instance.rotate_proxy()
